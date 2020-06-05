@@ -43,9 +43,9 @@ public final class ComputationState {
   private double _gradientErr;
   private boolean _lambdaNull; // true if lambda was not provided by user
   private double _gMax; // store max value of original gradient without dividing by math.max(1e-2, _parms._alpha[0])
-  private DataInfo _activeData;
+  public DataInfo _activeData;
   private BetaConstraint _activeBC = null;
-  private double[] _beta; // vector of coefficients corresponding to active data
+  private double[] _beta; // vector of coefficients corresponding to active data only
   private double[] _ubeta;  // HGLM, store coefficients of random effects;
   private double[] _psi; // HGLM, psi
   private double[] _phi; // HGLM, size random columns levels
@@ -324,7 +324,7 @@ public final class ComputationState {
 
   public boolean _lsNeeded = false;
 
-  private DataInfo [] _activeDataMultinomial;
+  public DataInfo [] _activeDataMultinomial;
 
   public DataInfo activeDataMultinomial(int c) {return _activeDataMultinomial != null?_activeDataMultinomial[c]:_dinfo;}
 
@@ -497,7 +497,7 @@ public final class ComputationState {
       int i = 0;
       int [] cs = new int[P+1];
       int sum = 0;
-      for(int c = 0; c < _nclasses; ++c){
+      for(int c = 0; c < _nclasses; ++c){ 
         int [] classcols = cs;
         int[] oldActiveCols = _activeDataMultinomial[c] == null ? new int[]{P} : _activeDataMultinomial[c]._activeCols;
         int k = 0;
@@ -522,7 +522,7 @@ public final class ComputationState {
       return checkKKTsMultinomial();
     double [] beta = _beta;
     double [] u = _u;
-    if(_activeData._activeCols != null) {
+    if(_activeData._activeCols != null && (_beta.length < (_dinfo.fullN()+1))) {
       beta = ArrayUtils.expandAndScatter(beta, _dinfo.fullN() + 1, _activeData._activeCols);
       if(_u != null)
         u =  ArrayUtils.expandAndScatter(_u, _dinfo.fullN() + 1, _activeData._activeCols);
@@ -662,7 +662,7 @@ public final class ComputationState {
   protected double updateState(double [] beta,GLMGradientInfo ginfo){
     _betaDiff = ArrayUtils.linfnorm(_beta == null?beta:ArrayUtils.subtract(_beta,beta),false);
     double objOld = objective();
-    if(_beta == null)_beta = beta.clone();
+    if(_beta == null || (beta.length != _beta.length))_beta = beta.clone();
     else System.arraycopy(beta,0,_beta,0,beta.length);
     _ginfo = ginfo;
     _likelihood = ginfo._likelihood;
@@ -677,8 +677,16 @@ public final class ComputationState {
     _ginfo = copyGInfo(ginfo);
   }
   protected void setBeta(double[] beta) {
-    if(_beta == null)_beta = beta.clone();
+    if(_beta == null) _beta = beta.clone();
     else System.arraycopy(beta,0, _beta, 0, beta.length);
+    
+/*    if(_beta == null) {
+      _beta = beta.clone();
+    } else if (_beta.length == beta.length){
+      System.arraycopy(beta,0, _beta, 0, beta.length);
+    } else {  // beta and _beta are of different length
+      System.arraycopy(ArrayUtils.select(beta, _activeData._activeCols), 0, _beta, 0, _beta.length);
+    }*/
   }
   
   protected void setIter(int iteration) {
@@ -706,7 +714,7 @@ public final class ComputationState {
   }
 
   public double [] expandBeta(double [] beta) {
-    if(_activeData._activeCols == null)
+    if(_activeData._activeCols == null || beta.length == _dinfo.fullN()+1)
       return beta;
     return ArrayUtils.expandAndScatter(beta, (_dinfo.fullN() + 1) * _nclasses,_activeData._activeCols);
   }
