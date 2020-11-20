@@ -26,10 +26,6 @@ def test_parser_svmlight_column_skip():
     assert pyunit_utils.compare_frames_local_svm(original_frame, svm_frame_uploaded, prob=1, returnResult=True),\
         "Frame uploaded from svm file is not the same as original"
 
-    svm_frame_imported = h2o.import_file(svmfile)
-    assert pyunit_utils.compare_frames_local_svm(original_frame, svm_frame_imported, prob=1, returnResult=True), \
-        "Frame imported from svm file is not the same as original"
-
     # test with null skipped_column list
     svm_frame_uploaded_skipped_nothing = h2o.upload_file(svmfile, skipped_columns=[])
     assert pyunit_utils.compare_frames_local_svm(original_frame, svm_frame_uploaded_skipped_nothing, prob=1,
@@ -40,6 +36,10 @@ def test_parser_svmlight_column_skip():
     assert pyunit_utils.compare_frames_local_svm(original_frame, svm_frame_imported_skipped_nothing, prob=1,
                                                  returnResult=True),\
         "Frame imported from svm file with empty skipped_columns parameter is not the same as original"
+
+    svm_frame_imported = h2o.import_file(svmfile)
+    assert pyunit_utils.compare_frames_local_svm(original_frame, svm_frame_imported, prob=1, returnResult=True), \
+        "Frame imported from svm file is not the same as original"
 
 
 if __name__ == "__main__":
