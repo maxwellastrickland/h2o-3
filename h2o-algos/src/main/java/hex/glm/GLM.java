@@ -701,8 +701,9 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         if(_parms._lambda_search) _parms._gradient_epsilon *= 1e-2;
       }
 
-      if (_parms.hasCheckpoint() && !_parms._family.equals(Family.gaussian)) {
-        _checkPointFirstIter = true;
+      if (_parms.hasCheckpoint()) {
+        if (!_parms._family.equals(Family.gaussian))  // Gaussian it not iterative and therefore don't care
+          _checkPointFirstIter = true;  // mark the first iteration during iteration process of training
         if (!_parms._solver.equals(Solver.IRLSM))
           error("_checkpoint", "GLM checkpoint is supported only for IRLSM.  Please specify it " +
                   "explicitly.  Do not use AUTO or default");
@@ -719,6 +720,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
   // jest of this method is to restore the _state to be the same as before
   private void copyCheckModel2StateP1() {
     int submodelInd;
+    int coefLen = _nclass > 2?(_dinfo.fullN()+1)*_nclass:(_dinfo.fullN()+1);
     if (_model._output._submodels.length > 1)  // lambda search or multiple alpha/lambda cases
       submodelInd = _model._output._submodels.length - 1; // submodel where the model building ends
     else  // no lambda search or multiple alpha/lambda case
@@ -730,7 +732,9 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
     if (submodelInd > 0) {
       int preCurrSubmodelInd = _parms._family.equals(Family.gaussian)?submodelInd:(submodelInd-1);
       _state._activeData._activeCols = _model._output._submodels[preCurrSubmodelInd].idxs;
-      double[] betaExpand = _state.expandBeta(_model._output._submodels[preCurrSubmodelInd].beta);
+      double[] betaExpand = _parms._family.equals(Family.multinomial)
+              ?ArrayUtils.expandAndScatter(_model._output._submodels[preCurrSubmodelInd].beta, coefLen, _state._activeData._activeCols)
+      :_state.expandBeta(_model._output._submodels[preCurrSubmodelInd].beta);
       GLMGradientInfo ginfo = new GLMGradientSolver(_job, _parms, _dinfo, 0, _state.activeBC(), _penaltyMatrix,
               _gamColIndices).getGradient(betaExpand);  // gradient obtained with zero penalty
 
@@ -756,7 +760,6 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         _state.updateState(beta_multinomial, ginfo);
       }*/ 
       if (submodelInd == 0) { // no lambda_search, only 1 alpha and 1 lambda value
-        int coefLen = _nclass > 2?(_dinfo.fullN()+1)*_nclass:(_dinfo.fullN()+1);
         double[] expandedBeta = ArrayUtils.expandAndScatter(_model._output._submodels[0].beta,
                 coefLen, _model._output._submodels[0].idxs);
         GLMGradientInfo ginfo = new GLMGradientSolver(_job, _parms, _dinfo, 0, _state.activeBC(),
@@ -2386,7 +2389,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
                   && !_checkPointFirstIter) // default: cold_start for non lambda_search
             coldStart(devHistoryTrain, devHistoryTest);
           Submodel sm = computeSubmodel(submodelCount, _parms._lambda[i], nullDevTrain, nullDevValid);
-          if (_checkPointFirstIter && _parms.hasCheckpoint())
+          if (_checkPointFirstIter)
             _checkPointFirstIter = false;
           double trainDev = sm.devianceTrain; // this is stupid, they are always -1 except for lambda_search=True
           double testDev = sm.devianceValid;
