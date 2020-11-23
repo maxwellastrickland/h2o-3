@@ -3527,7 +3527,8 @@ def compare_frames_local_svm(f1, f2, prob=0.5, tol=1e-6, returnResult=False):
     :param returnResult:
     :return:
     '''
-    assert (f1.nrow==f2.nrow) and (f1.ncol==f2.ncol), "The two frames are of different sizes."
+    assert (f1.nrow==f2.nrow) and (f1.ncol==f2.ncol), "Frame 1 row {0}, col {1}.  Frame 2 row {2}, col {3}.  They are " \
+                                                      "different.".format(f1.nrow, f1.ncol, f2.nrow, f2.ncol)
     temp1 = f1.as_data_frame(use_pandas=False)
     temp2 = f2.as_data_frame(use_pandas=False)
     for rowInd in range(1, f1.nrow):
